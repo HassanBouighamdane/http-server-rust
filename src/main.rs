@@ -3,7 +3,7 @@ use std::net::TcpListener;
 use std::{io::{prelude::*, BufReader}, net::{Ipv4Addr, SocketAddrV4, TcpStream}};
 mod response;
 
-use response::{success_response};
+use response::success_response;
 fn main() {
     // You can use print statements as follows for debugging, they'll be visible when running tests.
     println!("Logs from your program will appear here!");
@@ -26,5 +26,14 @@ fn main() {
 }
 
 fn handle_connection(mut stream: TcpStream) {
-    stream.write_all(success_response().as_bytes()).unwrap();
+    let buf_reader=BufReader::new(&stream);
+    let http_request: Vec<_> = buf_reader
+        .lines()
+        .map(|result| result.unwrap())
+        .take_while(|line| !line.is_empty())
+        .collect();
+
+    let response=success_response();
+    
+    stream.write_all(response.as_bytes()).unwrap();
 }
