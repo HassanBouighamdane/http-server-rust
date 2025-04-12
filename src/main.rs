@@ -2,8 +2,9 @@
 use std::net::TcpListener;
 use std::{io::{prelude::*, BufReader}, net::{Ipv4Addr, SocketAddrV4, TcpStream}};
 mod response;
-
-use response as HttpResponse;
+mod http;
+use http::Requestline;
+use response as Response;
 fn main() {
     // You can use print statements as follows for debugging, they'll be visible when running tests.
     println!("Logs from your program will appear here!");
@@ -12,6 +13,15 @@ fn main() {
     let listener = TcpListener::bind(addr).unwrap();
     //This also works 
     //let listener = TcpListener::bind("127.0.0.1:4221").unwrap();
+
+    /* 
+    //test the print of the response
+    let status_line=Statustline::new(String::from("HTTP/1.1"), 200, String::from("OK"));
+    let headers=vec![ResponseHeader::new()];
+    let body=ResponseBody::new();
+    let response=HttpResponse::new(status_line,headers,body);
+    println!("{}",response);
+    */
 
      for stream in listener.incoming() {
          match stream {
@@ -33,14 +43,15 @@ fn handle_connection(mut stream: TcpStream) {
         .take_while(|line| !line.is_empty())
         .collect();
 
-
-    let request_line=http_request.first().unwrap();
-    
-    let http_response= if request_line=="GET / HTTP/1.1"{
-        HttpResponse::success_response()
-    }else {
-        HttpResponse::not_found_response()
+    let request_line=Requestline::new(http_request.first().unwrap());
+    let path=request_line.path.as_str();
+    let http_response=match path{
+       "/"=> Response::success_response(),
+       path if path.starts_with("/echo/") => {
+        let text=&path[6..];
+        Response::echo_text(text)
+    },
+        _ => Response::not_found_response()
     };
-    
-    stream.write_all(http_response.as_bytes()).unwrap();
+    stream.write_all(http_response.to_string().as_bytes()).unwrap();
 }
