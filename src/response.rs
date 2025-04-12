@@ -23,7 +23,7 @@ pub fn echo_text(text:&str)-> HttpResponse{
     let status_line=Statustline::new(String::from("HTTP/1.1"), 200, String::from("OK"));
     //header area
     let content_type_header=ResponseHeader::new(String::from("Content-Type"),String::from("text/plain"));
-    let content_length_header=ResponseHeader::new(String::from("Content-Length"),String::from("3"));
+    let content_length_header=ResponseHeader::new(String::from("Content-Length"),String::from(text.len().to_string()));
 
     let headers=ResponseHeaders::new(vec![content_type_header,content_length_header]);
     //body area
