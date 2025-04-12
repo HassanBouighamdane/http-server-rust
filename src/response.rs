@@ -29,6 +29,6 @@ pub fn echo_text(text:&str)-> HttpResponse{
     //body area
     let body=ResponseBody::new(text.to_string());
     let response=HttpResponse::new(status_line,headers,body);
- 
+
     response
 }

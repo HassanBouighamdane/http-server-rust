@@ -139,7 +139,7 @@ impl fmt::Display for Statustline{
 }
 impl fmt::Display for ResponseHeader{
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f,"{} : {}{}",self.header,self.value,"\r\n")
+        write!(f,"{}: {}{}",self.header,self.value,"\r\n")
     }
 }
 
