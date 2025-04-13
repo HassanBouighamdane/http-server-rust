@@ -1,6 +1,11 @@
 #[allow(unused_imports)]
-use std::net::TcpListener;
-use std::{io::{prelude::*, BufReader}, net::{Ipv4Addr, SocketAddrV4, TcpStream}};
+
+use std::
+        {io::{prelude::*, BufReader}, 
+        net::{TcpListener,Ipv4Addr, SocketAddrV4, TcpStream},
+        thread,
+        time::Duration
+    };
 mod response;
 mod http;
 use http::http_request::{ HttpRequest, RequestBody, RequestHeader, RequestHeaders, Requestline};
@@ -16,7 +21,9 @@ fn main() {
      for stream in listener.incoming() {
          match stream {
          Ok(_stream) => {
-                 handle_connection(_stream);
+            thread::spawn(||{
+                handle_connection(_stream);
+            });
              }
              Err(e) => {
                 println!("error: {}", e);
@@ -37,14 +44,18 @@ fn handle_connection(mut stream: TcpStream) {
     //Request line 
     let request_line=http_request.request_line;
     let path=request_line.path.as_str();
+    let method=request_line.method.as_str();
 
-    let http_response=match path{
-       "/"=> Response::success_response(),
-       path if path.starts_with("/echo/") => {
-        let text=&path[6..];
-        Response::echo_text(text)
-            },
-        path if path.starts_with("/user-agent")=>{
+    let http_response=match (method,path){
+       ("GET","/")=> {
+        thread::sleep(Duration::from_secs(1));
+        Response::success_response()
+    },
+       ("GET",path) if path.starts_with("/echo/") => {
+            let text=&path[6..];
+            Response::echo_text(text)
+        },
+        ("GET",path)  if path.starts_with("/user-agent")=>{
             Response::user_agent(http_request.headers)
         }
         _ => Response::not_found_response()

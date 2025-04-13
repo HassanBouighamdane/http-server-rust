@@ -48,7 +48,6 @@ pub fn user_agent(request_headers:RequestHeaders)->HttpResponse{
 
     let response_headers=ResponseHeaders::new(vec![content_type_header,content_length_header]);
     //body area
-    println!("{}",user_agent_value);
     let body=ResponseBody::new(user_agent_value);
     let response=HttpResponse::new(status_line,response_headers,body);
     
