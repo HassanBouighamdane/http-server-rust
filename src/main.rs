@@ -48,7 +48,6 @@ fn handle_connection(mut stream: TcpStream) {
 
     let http_response=match (method,path){
        ("GET","/")=> {
-        thread::sleep(Duration::from_secs(1));
         Response::success_response()
     },
        ("GET",path) if path.starts_with("/echo/") => {
