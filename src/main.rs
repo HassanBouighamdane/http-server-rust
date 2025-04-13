@@ -1,5 +1,4 @@
 #[allow(unused_imports)]
-
 use std::
         {io::{prelude::*, BufReader}, 
         net::{TcpListener,Ipv4Addr, SocketAddrV4, TcpStream},
@@ -8,12 +7,16 @@ use std::
     };
 mod response;
 mod http;
+mod thread_pool;
+use thread_pool::ThreadPool;
 use http::http_request::{ HttpRequest, RequestBody, RequestHeader, RequestHeaders, Requestline};
 use response as Response;
+
 fn main() {
 
     let addr=SocketAddrV4::new(Ipv4Addr::new(127, 0,0, 1), 4221);
     let listener = TcpListener::bind(addr).unwrap();
+    let pool=ThreadPool::new(4);
     //This also works 
     //let listener = TcpListener::bind("127.0.0.1:4221").unwrap();
     println!("The server is up at: http://{}",addr.to_string());
@@ -21,9 +24,18 @@ fn main() {
      for stream in listener.incoming() {
          match stream {
          Ok(_stream) => {
+            /* 
+            //This code also can be used without using the ThreadPool, it's the simple way to implement concurrency
+            //The problem is that we create a thread for each connection opened which is not optimal and DDoS attack can 
+            //overhelm the server ressources and make the service unavailable
+
             thread::spawn(||{
                 handle_connection(_stream);
             });
+            */
+          pool.execute(|| {        
+                handle_connection(_stream);
+          }) 
              }
              Err(e) => {
                 println!("error: {}", e);
@@ -63,7 +75,11 @@ fn handle_connection(mut stream: TcpStream) {
 }
 
 fn parse_http_request(lines:Vec<String>)-> HttpRequest{
-    let request_line=Requestline::new(lines.first().unwrap());
+    let first_line=match lines.first(){
+        Some(line)=> line,
+        None=> &String::from("GET /not-found HTTP/1.1")
+    };
+    let request_line= Requestline::new(&first_line);
     let mut request_headers: Vec<RequestHeader>=Vec::new();
     for line in lines.iter().skip(1){
         let header=RequestHeader::new(line);
