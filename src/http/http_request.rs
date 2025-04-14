@@ -15,12 +15,14 @@ pub struct Requestline{
     pub http_version:String
 }
 
+#[derive(Clone)]
 pub struct RequestHeader{
     pub header:String,
     pub value:String
 
 }
 pub struct RequestBody{
+    pub body:String
 
 }
 pub struct RequestHeaders{
@@ -61,8 +63,10 @@ impl RequestHeader{
     }
 }
 impl RequestBody {
-    pub fn new()-> Self{
-        Self {  }
+    pub fn new(body:String)-> Self{
+        Self { 
+            body
+         }
     }
 }
 impl RequestHeaders{
