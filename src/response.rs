@@ -1,7 +1,7 @@
 use std::{fs::{self, OpenOptions}, io::Write};
     
 
-use crate::{http::{http_request::{self, HttpRequest, RequestBody, RequestHeaders}, http_response::{ HttpResponse, ResponseBody, ResponseHeader, ResponseHeaders, Statustline}}, utils::{extract_compression_schema, extract_directory_from_env}};
+use crate::{http::{http_request::{ HttpRequest, RequestBody}, http_response::{ HttpResponse, ResponseBody, ResponseHeader, ResponseHeaders, Statustline}}, utils::{ extract_compression_schemas, extract_directory_from_env}};
 
 pub fn success_response()->HttpResponse{
     let status_line=Statustline::new(String::from("HTTP/1.1"), 200, String::from("OK"));
@@ -27,22 +27,18 @@ pub fn echo_text(http_request:&HttpRequest,text:&str)-> HttpResponse{
     //header area
     let content_type_header=ResponseHeader::new(String::from("Content-Type"),String::from("text/plain"));
     let content_length_header=ResponseHeader::new(String::from("Content-Length"),String::from(text.len().to_string()));
-    let compression_schema=extract_compression_schema(&http_request.headers.headers);
+    let compression_schemas=extract_compression_schemas(&http_request.headers.headers);
     
-    let headers=match compression_schema{
-        Some(schema)=>{
-            if schema=="gzip"{
-                let content_encoding_header=ResponseHeader::new(String::from("Content-Encoding"),String::from(schema));
+    let headers=if compression_schemas.contains(&String::from("gzip")){
+                let content_encoding_header=ResponseHeader::new(
+                    String::from("Content-Encoding"),
+                    String::from("gzip")
+                );
                 ResponseHeaders::new(vec![content_encoding_header,content_type_header,content_length_header])
-            }else {
-                ResponseHeaders::new(vec![content_type_header,content_length_header])
             }
-        }
-        None=>{
-            ResponseHeaders::new(vec![content_type_header,content_length_header])
-        }
-       
-    };
+            else{
+                ResponseHeaders::new(vec![content_type_header,content_length_header])
+            };
     //body area
     let body=ResponseBody::new(text.to_string());
 

@@ -53,12 +53,21 @@ pub fn parse_http_request(buf_reader:&mut BufReader<&TcpStream>)-> HttpRequest{
 }
 
 
-pub fn extract_compression_schema(request_headers_vec:&Vec<RequestHeader>)->Option<&String>{
+pub fn extract_compression_schemas(request_headers_vec:&Vec<RequestHeader>)->Vec<String>{
 
     let compression_schema=request_headers_vec.iter()
    .find(|h| h.header.to_lowercase()=="accept-encoding")
-   .and_then(|h|Some(&h.value));
+   .map(|h|&h.value);
 
-   compression_schema
-
+   let compression_schemas=match compression_schema{
+    Some(schemas)=>{
+        schemas.split(",")
+                .map(|s| s.trim().to_string())
+                .collect()
+    }
+    None=>{
+        Vec::new()
+    }
+   };
+   compression_schemas
 }
