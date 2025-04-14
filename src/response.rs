@@ -1,4 +1,7 @@
-use crate::http::{http_request::RequestHeaders, http_response::{ HttpResponse, ResponseBody, ResponseHeader, ResponseHeaders, Statustline}};
+use std::fs;
+    
+
+use crate::{http::{http_request::RequestHeaders, http_response::{ HttpResponse, ResponseBody, ResponseHeader, ResponseHeaders, Statustline}}, utils::extract_directory_from_env};
 
 pub fn success_response()->HttpResponse{
     let status_line=Statustline::new(String::from("HTTP/1.1"), 200, String::from("OK"));
@@ -52,4 +55,44 @@ pub fn user_agent(request_headers:RequestHeaders)->HttpResponse{
     let response=HttpResponse::new(status_line,response_headers,body);
     
     response
+}
+
+pub fn return_file(path:&str)-> HttpResponse{
+    let directory=extract_directory_from_env();
+    let file_name=&path[7..];
+    
+    let file_path=match directory{
+        Some(dir)=>{
+            let mut path_buf = dir.clone();
+            path_buf.push(file_name);
+            path_buf
+        },
+        None=> {
+            return self::not_found_response();
+        }
+    };
+    let file=fs::read_to_string(file_path);
+                                        
+
+    match file{
+        Ok(file_content)=>{
+            let status_line=Statustline::new(String::from("HTTP/1.1"), 200, String::from("OK"));
+            //header area
+            let  content_type_header=ResponseHeader::new(String::from("Content-Type"),String::from("application/octet-stream"));
+            let  content_length_header=ResponseHeader::new(String::from("Content-Length"),String::from(file_content.len().to_string()));
+        
+            let  headers=ResponseHeaders::new(vec![content_type_header,content_length_header]);
+            //body area
+            let  body=ResponseBody::new(String::from(file_content));
+            let response=HttpResponse::new(status_line,headers,body);
+            response
+        },
+        Err(_e)=>{
+            return self::not_found_response()
+        }
+    }
+    
+    
+    
+
 }

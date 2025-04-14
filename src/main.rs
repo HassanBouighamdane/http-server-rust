@@ -1,13 +1,13 @@
-#[allow(unused_imports)]
-use std::
-        {io::{prelude::*, BufReader}, 
-        net::{TcpListener,Ipv4Addr, SocketAddrV4, TcpStream},
-        thread,
-        time::Duration
-    };
+//#![allow(unused_imports)]
+#![allow(dead_code)]
 mod response;
 mod http;
 mod thread_pool;
+mod utils;
+use std::
+        { io::{prelude::*, BufReader}, net::{Ipv4Addr, SocketAddrV4, TcpListener, TcpStream}
+    };
+
 use thread_pool::ThreadPool;
 use http::http_request::{ HttpRequest, RequestBody, RequestHeader, RequestHeaders, Requestline};
 use response as Response;
@@ -20,7 +20,6 @@ fn main() {
     //This also works 
     //let listener = TcpListener::bind("127.0.0.1:4221").unwrap();
     println!("The server is up at: http://{}",addr.to_string());
-
      for stream in listener.incoming() {
          match stream {
          Ok(_stream) => {
@@ -68,6 +67,9 @@ fn handle_connection(mut stream: TcpStream) {
         },
         ("GET",path)  if path.starts_with("/user-agent")=>{
             Response::user_agent(http_request.headers)
+        },
+        ("GET",path)  if path.starts_with("/files/")=>{
+            Response::return_file(path)
         }
         _ => Response::not_found_response()
     };
@@ -90,3 +92,4 @@ fn parse_http_request(lines:Vec<String>)-> HttpRequest{
 
     HttpRequest::new(request_line,headers,body)
 }
+
