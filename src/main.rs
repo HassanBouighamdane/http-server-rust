@@ -9,8 +9,8 @@ use std::
     };
 
 use thread_pool::ThreadPool;
-use http::http_request::{ HttpRequest, RequestBody, RequestHeader, RequestHeaders, Requestline};
 use response as Response;
+use utils::parse_http_request;
 
 fn main() {
 
@@ -49,7 +49,7 @@ fn handle_connection(mut stream: TcpStream) {
 
     let http_request=parse_http_request(&mut buf_reader);
     //Request line 
-    let request_line=http_request.request_line;
+    let request_line=&http_request.request_line;
     let path=request_line.path.as_str();
     let method=request_line.method.as_str();
 
@@ -59,10 +59,10 @@ fn handle_connection(mut stream: TcpStream) {
     },
        ("GET",path) if path.starts_with("/echo/") => {
             let text=&path[6..];
-            Response::echo_text(text)
+            Response::echo_text(&http_request,text)
         },
         ("GET",path)  if path.starts_with("/user-agent")=>{
-            Response::user_agent(http_request.headers)
+            Response::user_agent(&http_request)
         },
         ("GET",path)  if path.starts_with("/files/")=>{
             Response::return_file(&path[7..])
@@ -73,42 +73,5 @@ fn handle_connection(mut stream: TcpStream) {
         _ => Response::not_found_response()
     };
     stream.write_all(http_response.to_string().as_bytes()).unwrap();
-}
-
-fn parse_http_request(buf_reader:&mut BufReader<&TcpStream>)-> HttpRequest{
-    let mut headers=Vec::new();
-    let mut line=String::new();
-
-    loop{
-        line.clear();
-        let bytes_read=buf_reader.read_line(&mut line).unwrap();
-        if bytes_read==0 || line=="\r\n"{
-            break;
-        }
-        headers.push(line.trim().to_string());
-    }
-   // Parse request line and headers
-   let first_line = headers.first().cloned().unwrap_or_else(|| "GET /not-found HTTP/1.1".to_string());
-   let request_line = Requestline::new(&first_line);
-
-   let mut request_headers_vec = Vec::new();
-   for header_line in headers.iter().skip(1) {
-       request_headers_vec.push(RequestHeader::new(header_line));
-   }
-   let headers_obj = RequestHeaders::new(request_headers_vec.clone());
-
-   // Determine content length
-   let content_length = request_headers_vec.iter()
-   .find(|h| h.header.to_lowercase() == "content-length")
-   .and_then(|h| h.value.parse::<usize>().ok())
-   .unwrap_or(0);
-
-
-   // Read body
-   let mut body_buf = vec![0; content_length];
-   buf_reader.read_exact(&mut body_buf).unwrap_or_default();
-   let body = String::from_utf8_lossy(&body_buf).to_string();
-   let request_body = RequestBody::new(body);
-   HttpRequest::new(request_line, headers_obj, request_body)
 }
 
