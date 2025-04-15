@@ -1,7 +1,7 @@
 use std::{fs::{self, OpenOptions}, io::Write};
     
 
-use crate::{http::{http_request::{ HttpRequest, RequestBody}, http_response::{ HttpResponse, ResponseBody, ResponseHeader, ResponseHeaders, Statustline}}, utils::{ extract_compression_schemas, extract_directory_from_env}};
+use crate::{http::{http_request::{ HttpRequest, RequestBody}, http_response::{ HttpResponse, ResponseBody, ResponseHeader, ResponseHeaders, Statustline}}, utils::{ compress_to_gzip, extract_compression_schemas, extract_directory_from_env}};
 
 pub fn success_response()->HttpResponse{
     let status_line=Statustline::new(String::from("HTTP/1.1"), 200, String::from("OK"));
@@ -26,24 +26,54 @@ pub fn echo_text(http_request:&HttpRequest,text:&str)-> HttpResponse{
     let status_line=Statustline::new(String::from("HTTP/1.1"), 200, String::from("OK"));
     //header area
     let content_type_header=ResponseHeader::new(String::from("Content-Type"),String::from("text/plain"));
-    let content_length_header=ResponseHeader::new(String::from("Content-Length"),String::from(text.len().to_string()));
     let compression_schemas=extract_compression_schemas(&http_request.headers.headers);
     
-    let headers=if compression_schemas.contains(&String::from("gzip")){
+    let (headers,body)=if compression_schemas.contains(&String::from("gzip")){
                 let content_encoding_header=ResponseHeader::new(
                     String::from("Content-Encoding"),
                     String::from("gzip")
                 );
-                ResponseHeaders::new(vec![content_encoding_header,content_type_header,content_length_header])
+                
+                let compressed_body=compress_to_gzip(text);
+                let body_response=match compressed_body{
+                    Ok(b)=>{
+
+                        let content_length_header = ResponseHeader::new(
+                            String::from("Content-Length"),
+                            b.len().to_string()
+                        );
+
+                        
+                        let binary_string = unsafe { String::from_utf8_unchecked(b) };
+                        let headers = ResponseHeaders::new(vec![
+                            content_encoding_header, 
+                            content_type_header, 
+                            content_length_header
+                        ]);
+                        (headers, ResponseBody::new(binary_string))
+                    }Err(_e)=>{
+                        (ResponseHeaders::new(vec![
+                            content_encoding_header,
+                            content_type_header,
+                            ResponseHeader::new(
+                                String::from("Content-Length"),
+                                "0".to_string()
+                            )
+                        ]), ResponseBody::new(String::new()))
+                    }
+                };
+                body_response
             }
             else{
-                ResponseHeaders::new(vec![content_type_header,content_length_header])
+                let content_length_header = ResponseHeader::new(
+                    String::from("Content-Length"),
+                    text.len().to_string()
+                );
+                (ResponseHeaders::new(vec![content_type_header, content_length_header]), 
+                 ResponseBody::new(text.to_string()))
             };
-    //body area
-    let body=ResponseBody::new(text.to_string());
 
     let response=HttpResponse::new(status_line,headers,body);
-    println!("{}",response);
     response
 }
 

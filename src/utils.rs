@@ -1,5 +1,5 @@
-use std::{env, io::{BufRead, BufReader, Read}, net::TcpStream, path::PathBuf};
-
+use std::{env, io::{BufRead, BufReader, Read,Result}, net::TcpStream, path::PathBuf};
+use flate2::{read::GzEncoder, Compression};
 use crate::http::http_request::{HttpRequest, RequestBody, RequestHeader, RequestHeaders, Requestline};
 
 pub fn extract_directory_from_env()->Option<PathBuf>{
@@ -70,4 +70,12 @@ pub fn extract_compression_schemas(request_headers_vec:&Vec<RequestHeader>)->Vec
     }
    };
    compression_schemas
+}
+
+pub fn compress_to_gzip(text:&str)->Result<Vec<u8>>{
+    let mut ret_vec = Vec::new();
+    let bytestring =text.as_bytes();
+    let mut gz = GzEncoder::new(&bytestring[..], Compression::fast());
+    gz.read_to_end(&mut ret_vec)?;
+    Ok(ret_vec)
 }
