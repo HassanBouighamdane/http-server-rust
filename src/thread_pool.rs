@@ -43,7 +43,7 @@ impl Worker{
             The code handle multiple requests in the some connection without closing it
             unless Connection: close is specified
              */
-            println!("Worker {id} got a job; executing.");
+           // println!("Worker {id} got a job; executing.");
             job();
         });
        

@@ -5,7 +5,7 @@ mod http;
 mod thread_pool;
 mod utils;
 use std::
-        { io::{prelude::*, BufReader}, net::{Ipv4Addr, SocketAddrV4, TcpListener, TcpStream}, time::Duration
+        { io::{prelude::*, BufReader}, net::{Ipv4Addr, SocketAddrV4, TcpListener, TcpStream},
     };
 
 use thread_pool::ThreadPool;
@@ -57,7 +57,7 @@ fn handle_connection(mut stream: TcpStream) {
 
     let http_response=match (method,path){
        ("GET","/")=> {
-        Response::success_response()
+        Response::success_response(&http_request)
     },
        ("GET",path) if path.starts_with("/echo/") => {
             let text=&path[6..];
@@ -67,12 +67,12 @@ fn handle_connection(mut stream: TcpStream) {
             Response::user_agent(&http_request)
         },
         ("GET",path)  if path.starts_with("/files/")=>{
-            Response::return_file(&path[7..])
+            Response::return_file(&http_request,&path[7..])
         },
         ("POST",path) if path.starts_with("/files/")=>{
-            Response::create_file(http_request.body,&path[7..])
+            Response::create_file(&http_request,&path[7..])
         }
-        _ => Response::not_found_response()
+        _ => Response::not_found_response(&http_request)
     };
     if let Err(e) = stream.write_all(http_response.to_string().as_bytes()) {
         println!("Error writing response: {}", e);

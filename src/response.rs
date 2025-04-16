@@ -3,18 +3,31 @@ use std::{fs::{self, OpenOptions}, io::Write};
 
 use crate::{http::{http_request::{ HttpRequest, RequestBody}, http_response::{ HttpResponse, ResponseBody, ResponseHeader, ResponseHeaders, Statustline}}, utils::{ compress_to_gzip, extract_compression_schemas, extract_content_type, extract_directory_from_env}};
 
-pub fn success_response()->HttpResponse{
+pub fn success_response(http_request:&HttpRequest)->HttpResponse{
     let status_line=Statustline::new(String::from("HTTP/1.1"), 200, String::from("OK"));
-    let headers=ResponseHeaders::new(vec![]);
+    
+    let mut headers_vec=Vec::new();
+    for header in  &http_request.headers.headers{
+        if header.header.to_lowercase()=="connection" && header.value.to_lowercase()=="close"{
+            headers_vec.push(ResponseHeader::new(String::from("Connection"), String::from("close")));
+        }
+    };
+    let headers=ResponseHeaders::new(headers_vec);
     let body=ResponseBody::new(String::from(""));
     let response=HttpResponse::new(status_line,headers,body);
     
     response
 }
 
-pub fn not_found_response()->HttpResponse{
+pub fn not_found_response(http_request:&HttpRequest)->HttpResponse{
     let status_line=Statustline::new(String::from("HTTP/1.1"), 404, String::from("Not Found"));
-    let headers=ResponseHeaders::new(vec![]);
+    let mut headers_vec=Vec::new();
+    for header in  &http_request.headers.headers{
+        if header.header.to_lowercase()=="connection" && header.value.to_lowercase()=="close"{
+            headers_vec.push(ResponseHeader::new(String::from("Connection"), String::from("close")));
+        }
+    };
+    let headers=ResponseHeaders::new(headers_vec);
     let body=ResponseBody::new(String::from(""));
     let response=HttpResponse::new(status_line,headers,body);
     
@@ -25,6 +38,7 @@ pub fn echo_text(http_request:&HttpRequest,text:&str)-> HttpResponse{
     //Response status area
     let status_line=Statustline::new(String::from("HTTP/1.1"), 200, String::from("OK"));
     //header area
+    let mut headers_vec=Vec::new();
     let content_type_header=match extract_content_type(&http_request.headers){
         Some(content_type)=>{
             ResponseHeader::new(String::from("Content-Type"),content_type.clone())
@@ -33,7 +47,7 @@ pub fn echo_text(http_request:&HttpRequest,text:&str)-> HttpResponse{
             ResponseHeader::new(String::from("Content-Type"),String::from("text/plain"))
         }
     };
-    
+    headers_vec.push(content_type_header);
     let compression_schemas=extract_compression_schemas(&http_request.headers);
     
     let (headers,body)=if compression_schemas.contains(&String::from("gzip")){
@@ -41,7 +55,7 @@ pub fn echo_text(http_request:&HttpRequest,text:&str)-> HttpResponse{
                     String::from("Content-Encoding"),
                     String::from("gzip")
                 );
-                
+                headers_vec.push(content_encoding_header);
                 let compressed_body=compress_to_gzip(text);
                 let body_response=match compressed_body{
                     Ok(b)=>{
@@ -50,35 +64,38 @@ pub fn echo_text(http_request:&HttpRequest,text:&str)-> HttpResponse{
                             String::from("Content-Length"),
                             b.len().to_string()
                         );
-
-                        
+                        headers_vec.push(content_length_header);
+                        for header in  &http_request.headers.headers{
+                            if header.header.to_lowercase()=="connection" && header.value.to_lowercase()=="close"{
+                                headers_vec.push(ResponseHeader::new(String::from("Connection"), String::from("close")));
+                            }
+                        };
+                        let headers=ResponseHeaders::new(headers_vec);
                         let binary_string = unsafe { String::from_utf8_unchecked(b) };
-                        let headers = ResponseHeaders::new(vec![
-                            content_encoding_header, 
-                            content_type_header, 
-                            content_length_header
-                        ]);
                         (headers, ResponseBody::new(binary_string))
                     }Err(_e)=>{
-                        (ResponseHeaders::new(vec![
-                            content_encoding_header,
-                            content_type_header,
-                            ResponseHeader::new(
-                                String::from("Content-Length"),
-                                "0".to_string()
-                            )
-                        ]), ResponseBody::new(String::new()))
+                        for header in  &http_request.headers.headers{
+                            if header.header.to_lowercase()=="connection" && header.value.to_lowercase()=="close"{
+                                headers_vec.push(ResponseHeader::new(String::from("Connection"), String::from("close")));
+                            }
+                        };
+                        headers_vec.push( ResponseHeader::new(
+                            String::from("Content-Length"),
+                            "0".to_string()
+                        ));
+                        let headers=ResponseHeaders::new(headers_vec);
+                        (headers, ResponseBody::new(String::new()))
                     }
                 };
                 body_response
             }
             else{
-                let content_length_header = ResponseHeader::new(
+                headers_vec.push(ResponseHeader::new(
                     String::from("Content-Length"),
                     text.len().to_string()
-                );
-                (ResponseHeaders::new(vec![content_type_header, content_length_header]), 
-                 ResponseBody::new(text.to_string()))
+                ));
+                let headers=ResponseHeaders::new(headers_vec);
+                (headers, ResponseBody::new(text.to_string()))
             };
 
     let response=HttpResponse::new(status_line,headers,body);
@@ -88,25 +105,31 @@ pub fn echo_text(http_request:&HttpRequest,text:&str)-> HttpResponse{
 pub fn user_agent(http_request:&HttpRequest)->HttpResponse{
     let status_line=Statustline::new(String::from("HTTP/1.1"), 200, String::from("OK"));
     let mut user_agent_value=String::new();
+    let mut headers_vec =Vec::new();
     for header in &http_request.headers.headers{
         if header.header=="User-Agent"{
             user_agent_value=header.value.clone();
             break;
         }
     }
+    
+    for header in  &http_request.headers.headers{
+        if header.header.to_lowercase()=="connection" && header.value.to_lowercase()=="close"{
+            headers_vec.push(ResponseHeader::new(String::from("Connection"), String::from("close")));
+        }
+    };
+    headers_vec.push(ResponseHeader::new(String::from("Content-Type"),String::from("text/plain")));
+    headers_vec.push(ResponseHeader::new(String::from("Content-Length"),String::from(user_agent_value.len().to_string())));
+    let headers=ResponseHeaders::new(headers_vec);
 
-    let content_type_header=ResponseHeader::new(String::from("Content-Type"),String::from("text/plain"));
-    let content_length_header=ResponseHeader::new(String::from("Content-Length"),String::from(user_agent_value.len().to_string()));
-
-    let response_headers=ResponseHeaders::new(vec![content_type_header,content_length_header]);
     //body area
     let body=ResponseBody::new(user_agent_value);
-    let response=HttpResponse::new(status_line,response_headers,body);
+    let response=HttpResponse::new(status_line,headers,body);
     
     response
 }
 
-pub fn return_file(file_name:&str)-> HttpResponse{
+pub fn return_file(http_request:&HttpRequest,file_name:&str)-> HttpResponse{
     let directory=extract_directory_from_env();
     
     let file_path=match directory{
@@ -116,7 +139,7 @@ pub fn return_file(file_name:&str)-> HttpResponse{
             path_buf
         },
         None=> {
-            return self::not_found_response();
+            return self::not_found_response(http_request);
         }
     };
     let file=fs::read_to_string(file_path);
@@ -135,12 +158,12 @@ pub fn return_file(file_name:&str)-> HttpResponse{
             response
         },
         Err(_e)=>{
-            return self::not_found_response()
+            return self::not_found_response(http_request)
         }
     }
 }
 
-pub fn create_file(body:RequestBody,file_name:&str)->HttpResponse{
+pub fn create_file(http_request:&HttpRequest,file_name:&str)->HttpResponse{
     let directory=extract_directory_from_env();
     
     let file_path=match directory{
@@ -150,7 +173,7 @@ pub fn create_file(body:RequestBody,file_name:&str)->HttpResponse{
             path_buf
         },
         None=>{
-            return self::not_found_response();
+            return self::not_found_response(http_request);
         }
     };
 
@@ -160,7 +183,7 @@ pub fn create_file(body:RequestBody,file_name:&str)->HttpResponse{
                             .open(&file_path);
     match file{
         Ok(mut f)=>{
-            let file_content=body.body;
+            let file_content=&http_request.body.body;
             if let Err(e)= f.write_all(file_content.as_bytes()){
                 eprintln!("Failed to write to file {}: {}", file_path.display(), e);
                 return self::internal_server_error_response();
