@@ -1,7 +1,7 @@
 use std::{fs::{self, OpenOptions}, io::Write};
     
 
-use crate::{http::{http_request::{ HttpRequest, RequestBody}, http_response::{ HttpResponse, ResponseBody, ResponseHeader, ResponseHeaders, Statustline}}, utils::{ compress_to_gzip, extract_compression_schemas, extract_directory_from_env}};
+use crate::{http::{http_request::{ HttpRequest, RequestBody}, http_response::{ HttpResponse, ResponseBody, ResponseHeader, ResponseHeaders, Statustline}}, utils::{ compress_to_gzip, extract_compression_schemas, extract_content_type, extract_directory_from_env}};
 
 pub fn success_response()->HttpResponse{
     let status_line=Statustline::new(String::from("HTTP/1.1"), 200, String::from("OK"));
@@ -25,8 +25,16 @@ pub fn echo_text(http_request:&HttpRequest,text:&str)-> HttpResponse{
     //Response status area
     let status_line=Statustline::new(String::from("HTTP/1.1"), 200, String::from("OK"));
     //header area
-    let content_type_header=ResponseHeader::new(String::from("Content-Type"),String::from("text/plain"));
-    let compression_schemas=extract_compression_schemas(&http_request.headers.headers);
+    let content_type_header=match extract_content_type(&http_request.headers){
+        Some(content_type)=>{
+            ResponseHeader::new(String::from("Content-Type"),content_type.clone())
+        },
+        None=>{
+            ResponseHeader::new(String::from("Content-Type"),String::from("text/plain"))
+        }
+    };
+    
+    let compression_schemas=extract_compression_schemas(&http_request.headers);
     
     let (headers,body)=if compression_schemas.contains(&String::from("gzip")){
                 let content_encoding_header=ResponseHeader::new(

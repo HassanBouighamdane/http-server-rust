@@ -5,7 +5,7 @@ mod http;
 mod thread_pool;
 mod utils;
 use std::
-        { io::{prelude::*, BufReader}, net::{Ipv4Addr, SocketAddrV4, TcpListener, TcpStream}
+        { io::{prelude::*, BufReader}, net::{Ipv4Addr, SocketAddrV4, TcpListener, TcpStream}, time::Duration
     };
 
 use thread_pool::ThreadPool;
@@ -44,7 +44,9 @@ fn main() {
 }
 
 fn handle_connection(mut stream: TcpStream) {
-    let mut buf_reader=BufReader::new(&stream);
+    //stream.set_read_timeout(Some(Duration::from_secs(30)));
+    loop {
+        let mut buf_reader=BufReader::new(&stream);
     
 
     let http_request=parse_http_request(&mut buf_reader);
@@ -72,6 +74,25 @@ fn handle_connection(mut stream: TcpStream) {
         }
         _ => Response::not_found_response()
     };
-    stream.write_all(http_response.to_string().as_bytes()).unwrap();
+    if let Err(e) = stream.write_all(http_response.to_string().as_bytes()) {
+        println!("Error writing response: {}", e);
+        break;
+    }
+    if let Err(e)= stream.flush(){
+        println!("Error flushing stream: {e}");
+        break;
+    }
+    let mut close_connection:bool=false;
+    for header in  &http_request.headers.headers{
+        if header.header.to_lowercase()=="connection" && header.value.to_lowercase()=="close"{
+            close_connection=true;
+            break;
+    }
+    }
+    if close_connection {
+        break;
+    }
+}
+    
 }
 

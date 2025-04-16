@@ -38,6 +38,12 @@ impl Worker{
     fn new(id:usize,receiver:Arc<Mutex<Receiver<Job>>>)->Self{
         let thread=thread::spawn(move || loop{
             let job=receiver.lock().unwrap().recv().unwrap();
+            /*
+            You can comment the code below to see how many connection is called
+            The code handle multiple requests in the some connection without closing it
+            unless Connection: close is specified
+             */
+            println!("Worker {id} got a job; executing.");
             job();
         });
        

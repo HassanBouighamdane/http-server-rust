@@ -53,9 +53,8 @@ pub fn parse_http_request(buf_reader:&mut BufReader<&TcpStream>)-> HttpRequest{
 }
 
 
-pub fn extract_compression_schemas(request_headers_vec:&Vec<RequestHeader>)->Vec<String>{
-
-    let compression_schema=request_headers_vec.iter()
+pub fn extract_compression_schemas(request_headers:&RequestHeaders)->Vec<String>{
+    let compression_schema=request_headers.headers.iter()
    .find(|h| h.header.to_lowercase()=="accept-encoding")
    .map(|h|&h.value);
 
@@ -78,4 +77,11 @@ pub fn compress_to_gzip(text:&str)->Result<Vec<u8>>{
     let mut gz = GzEncoder::new(&bytestring[..], Compression::fast());
     gz.read_to_end(&mut ret_vec)?;
     Ok(ret_vec)
+}
+
+pub fn extract_content_type(request_headers:&RequestHeaders)-> Option<&String>{
+    let content_type=request_headers.headers.iter()
+                                                                .find(|h| h.header.to_lowercase()=="content-type")
+                                                                .map(|h| &h.value);
+    content_type
 }
