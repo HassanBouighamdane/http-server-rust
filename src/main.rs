@@ -55,24 +55,32 @@ fn handle_connection(mut stream: TcpStream) {
     let path=request_line.path.as_str();
     let method=request_line.method.as_str();
 
+    let mut close_connection:bool=false;
+    for header in  &http_request.headers.headers{
+        if header.header.to_lowercase()=="connection" && header.value.to_lowercase()=="close"{
+            close_connection=true;
+            break;
+    }
+    }
+
     let http_response=match (method,path){
        ("GET","/")=> {
-        Response::success_response(&http_request)
+        Response::success_response(&http_request,close_connection)
     },
        ("GET",path) if path.starts_with("/echo/") => {
             let text=&path[6..];
-            Response::echo_text(&http_request,text)
+            Response::echo_text(&http_request,text,close_connection)
         },
         ("GET",path)  if path.starts_with("/user-agent")=>{
-            Response::user_agent(&http_request)
+            Response::user_agent(&http_request,close_connection)
         },
         ("GET",path)  if path.starts_with("/files/")=>{
-            Response::return_file(&http_request,&path[7..])
+            Response::return_file(&http_request,&path[7..],close_connection)
         },
         ("POST",path) if path.starts_with("/files/")=>{
-            Response::create_file(&http_request,&path[7..])
+            Response::create_file(&http_request,&path[7..],close_connection)
         }
-        _ => Response::not_found_response(&http_request)
+        _ => Response::not_found_response(&http_request,close_connection)
     };
     if let Err(e) = stream.write_all(http_response.to_string().as_bytes()) {
         println!("Error writing response: {}", e);
@@ -82,13 +90,7 @@ fn handle_connection(mut stream: TcpStream) {
         println!("Error flushing stream: {e}");
         break;
     }
-    let mut close_connection:bool=false;
-    for header in  &http_request.headers.headers{
-        if header.header.to_lowercase()=="connection" && header.value.to_lowercase()=="close"{
-            close_connection=true;
-            break;
-    }
-    }
+    
     if close_connection {
         break;
     }
